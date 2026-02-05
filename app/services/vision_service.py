@@ -5,7 +5,8 @@ import re
 from decimal import Decimal
 from io import BytesIO
 
-import google.generativeai as genai
+from google import genai
+from google.genai import types
 from PIL import Image
 
 from app.config import settings
@@ -17,8 +18,7 @@ class VisionService:
     
     def __init__(self):
         """Initialize Gemini client."""
-        genai.configure(api_key=settings.gemini_api_key)
-        self.model = genai.GenerativeModel("gemini-1.5-flash")
+        self.client = genai.Client(api_key=settings.gemini_api_key)
     
     async def extract_from_bill(self, image_bytes: bytes) -> BillExtractionResult:
         """
@@ -51,7 +51,22 @@ Important:
 - Be accurate with the decimal places"""
 
             # Call Gemini Vision
-            response = self.model.generate_content([prompt, image])
+            response = self.client.models.generate_content(
+                model=os.getenv("GEMINI_MODEL"),
+                contents=[prompt, image],
+                config=types.GenerateContentConfig(
+                    response_mime_type="application/json",
+                    response_schema={
+                        "type": "object",
+                        "properties": {
+                            "total_amount": {"type": "number"},
+                            "merchant_name": {"type": "string"},
+                            "suggested_category": {"type": "string"},
+                            "confidence": {"type": "number"},
+                        },
+                        "required": ["total_amount", "merchant_name", "suggested_category", "confidence"],
+                    },
+                ))
             response_text = response.text.strip()
             
             # Parse JSON from response
