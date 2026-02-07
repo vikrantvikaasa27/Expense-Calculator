@@ -2,10 +2,12 @@
 
 import asyncio
 import logging
+import os
+from dotenv import load_dotenv
+load_dotenv()
 
 from telegram.ext import Application
 
-from app.config import settings
 from app.database import init_db, close_db
 from app.bot.handlers import setup_handlers
 
@@ -35,12 +37,12 @@ async def post_shutdown(application: Application) -> None:
 def main() -> None:
     """Start the bot."""
     # Validate settings
-    if not settings.telegram_bot_token or settings.telegram_bot_token == "your_telegram_bot_token_here":
+    if not os.getenv("TELEGRAM_BOT_TOKEN"):
         logger.error("❌ TELEGRAM_BOT_TOKEN not configured!")
         logger.error("Please set your bot token in .env file")
         return
     
-    if not settings.gemini_api_key or settings.gemini_api_key == "your_gemini_api_key_here":
+    if not os.getenv("GEMINI_API_KEY"):
         logger.warning("⚠️ GEMINI_API_KEY not configured - bill scanning will not work")
     
     logger.info("🚀 Starting Expense Calculator Bot...")
@@ -48,7 +50,7 @@ def main() -> None:
     # Create application
     application = (
         Application.builder()
-        .token(settings.telegram_bot_token)
+        .token(os.getenv("TELEGRAM_BOT_TOKEN"))
         .post_init(post_init)
         .post_shutdown(post_shutdown)
         .build()

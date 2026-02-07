@@ -8,8 +8,10 @@ from io import BytesIO
 from google import genai
 from google.genai import types
 from PIL import Image
+import os 
+from dotenv import load_dotenv
+load_dotenv()
 
-from app.config import settings
 from app.schemas.expense import BillExtractionResult
 
 
@@ -18,7 +20,7 @@ class VisionService:
     
     def __init__(self):
         """Initialize Gemini client."""
-        self.client = genai.Client(api_key=settings.gemini_api_key)
+        self.client = genai.Client(api_key=os.getenv("GEMINI_API_KEY"))
     
     async def extract_from_bill(self, image_bytes: bytes) -> BillExtractionResult:
         """
