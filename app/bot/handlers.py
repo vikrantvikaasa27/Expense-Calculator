@@ -52,20 +52,20 @@ async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
         await expense_service.seed_categories(session)
     
     welcome_message = f"""
-👋 Welcome to **Expense Tracker Bot**, {user.first_name}!
+            👋 Welcome to **Expense Tracker Bot**, {user.first_name}!
 
-I help you track your expenses easily. Here's what I can do:
+            I help you track your expenses easily. Here's what I can do:
 
-📝 **Commands:**
-• /add - Add a new expense manually
-• /upload - Upload a bill image (I'll extract the amount!)
-• /report - View expense reports with charts
-• /history - See your recent expenses
-• /categories - View expense categories
-• /help - Show this help message
+            📝 **Commands:**
+            • /add - Add a new expense manually
+            • /upload - Upload a bill image (I'll extract the amount!)
+            • /report - View expense reports with charts
+            • /history - See your recent expenses
+            • /categories - View expense categories
+            • /help - Show this help message
 
-💡 **Quick Tip:** Just send me a bill photo anytime, and I'll extract the amount for you!
-"""
+            💡 **Quick Tip:** Just send me a bill photo anytime, and I'll extract the amount for you!
+            """
     
     await update.message.reply_text(
         welcome_message,
@@ -209,19 +209,16 @@ async def confirm_expense(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
     return ConversationHandler.END
 
 
-async def handle_photo(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
-    """Handle photo upload for bill scanning."""
-    await update.message.reply_text("🔍 Analyzing your bill... Please wait.")
-    
-    # Get photo file
-    photo = update.message.photo[-1]  # Highest resolution
-    file = await context.bot.get_file(photo.file_id)
-    
-    # Download image
-    image_bytes = await file.download_as_bytearray()
-    
-    # Extract data using Gemini Vision
-    result = await vision_service.extract_from_bill(bytes(image_bytes))
+async def _process_bill_image(update: Update, context: ContextTypes.DEFAULT_TYPE, image_bytes: bytes) -> int:
+    """Common logic to process a bill image and return conversation state."""
+    try:
+        result = await vision_service.extract_from_bill(image_bytes)
+    except Exception as e:
+        await update.message.reply_text(
+            f"❌ Error analyzing bill: {str(e)}\n"
+            "Please try again or use /add to enter manually.",
+        )
+        return ConversationHandler.END
     
     if result.amount:
         context.user_data["amount"] = result.amount
@@ -248,6 +245,28 @@ async def handle_photo(update: Update, context: ContextTypes.DEFAULT_TYPE) -> in
             "Please try again with a clearer image or use /add to enter manually.",
         )
         return ConversationHandler.END
+
+
+async def handle_photo(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    """Handle photo upload (compressed image) for bill scanning."""
+    await update.message.reply_text("🔍 Analyzing your bill... Please wait.")
+    
+    photo = update.message.photo[-1]  # Highest resolution
+    file = await context.bot.get_file(photo.file_id)
+    image_bytes = await file.download_as_bytearray()
+    
+    return await _process_bill_image(update, context, bytes(image_bytes))
+
+
+async def handle_document_photo(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    """Handle image sent as a document/file attachment for bill scanning."""
+    await update.message.reply_text("🔍 Analyzing your bill... Please wait.")
+    
+    document = update.message.document
+    file = await context.bot.get_file(document.file_id)
+    image_bytes = await file.download_as_bytearray()
+    
+    return await _process_bill_image(update, context, bytes(image_bytes))
 
 
 async def upload_confirm(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
@@ -553,9 +572,7 @@ def setup_handlers(application: Application) -> None:
     upload_handler = ConversationHandler(
         entry_points=[
             MessageHandler(filters.PHOTO, handle_photo),
-            CommandHandler("upload", lambda u, c: u.message.reply_text(
-                "📤 Send me a photo of your bill/receipt!"
-            )),
+            MessageHandler(filters.Document.IMAGE, handle_document_photo),
         ],
         states={
             UPLOAD_CONFIRM: [CallbackQueryHandler(upload_confirm)],
@@ -581,5 +598,8 @@ def setup_handlers(application: Application) -> None:
     application.add_handler(CommandHandler("categories", categories_command))
     application.add_handler(add_expense_handler)
     application.add_handler(upload_handler)
+    application.add_handler(CommandHandler("upload", lambda u, c: u.message.reply_text(
+            "📤 Send me a photo of your bill/receipt!"
+        )))
     application.add_handler(report_handler)
     application.add_handler(CallbackQueryHandler(menu_callback, pattern="^menu_"))

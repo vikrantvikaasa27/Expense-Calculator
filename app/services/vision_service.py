@@ -38,19 +38,19 @@ class VisionService:
             
             # Prompt for structured extraction
             prompt = """Analyze this receipt/bill image and extract the following information.
-Return ONLY a valid JSON object with these fields:
-{
-    "total_amount": <number or null if not found>,
-    "merchant_name": "<store/restaurant name or null>",
-    "suggested_category": "<one of: Food & Dining, Transportation, Groceries, Utilities, Entertainment, Healthcare, Shopping, Education, Travel, Others>",
-    "confidence": <0.0 to 1.0 based on image clarity and extraction confidence>
-}
+                Return ONLY a valid JSON object with these fields:
+                {
+                    "total_amount": <number or null if not found>,
+                    "merchant_name": "<store/restaurant name or null>",
+                    "suggested_category": "<one of: Food & Dining, Transportation, Groceries, Utilities, Entertainment, Healthcare, Shopping, Education, Travel, Others>",
+                    "confidence": <0.0 to 1.0 based on image clarity and extraction confidence>
+                }
 
-Important:
-- For total_amount, look for "Total", "Grand Total", "Amount Due", etc.
-- Extract the final amount including taxes
-- If multiple totals exist, use the largest one (final total)
-- Be accurate with the decimal places"""
+                Important:
+                - For total_amount, look for "Total", "Grand Total", "Amount Due", etc.
+                - Extract the final amount including taxes
+                - If multiple totals exist, use the largest one (final total)
+                - Be accurate with the decimal places"""
 
             # Call Gemini Vision
             response = self.client.models.generate_content(
