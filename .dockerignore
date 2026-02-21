@@ -1,0 +1,14 @@
+.venv/
+venv/
+.env
+.git/
+__pycache__/
+*.pyc
+*.pyo
+.idea/
+.vscode/
+*.log
+uploads/
+.DS_Store
+Thumbs.db
+uv.lock
