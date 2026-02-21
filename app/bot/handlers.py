@@ -490,33 +490,48 @@ async def categories_command(update: Update, context: ContextTypes.DEFAULT_TYPE)
     await update.message.reply_text(message, parse_mode="Markdown")
 
 
+async def menu_add_entry(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    """Handle 'Add Expense' menu button - enters add expense conversation."""
+    query = update.callback_query
+    await query.answer()
+    await query.message.reply_text(
+        "💰 **Add New Expense**\n\nPlease enter the amount (e.g., 150 or 150.50):",
+        parse_mode="Markdown",
+    )
+    return AMOUNT
+
+
+async def menu_upload_entry(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    """Handle 'Upload Bill' menu button - prompts user to send photo."""
+    query = update.callback_query
+    await query.answer()
+    await query.message.reply_text(
+        "📤 **Upload Bill**\n\nSend me a photo of your bill/receipt, and I'll extract the amount automatically!",
+        parse_mode="Markdown",
+    )
+    return ConversationHandler.END
+
+
+async def menu_report_entry(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    """Handle 'Reports' menu button - enters report conversation."""
+    query = update.callback_query
+    await query.answer()
+    await query.message.reply_text(
+        "📊 **Expense Reports**\n\nSelect a month:",
+        parse_mode="Markdown",
+        reply_markup=build_month_keyboard(),
+    )
+    return REPORT_MONTH
+
+
 async def menu_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    """Handle main menu callbacks."""
+    """Handle main menu callbacks (history, categories)."""
     query = update.callback_query
     await query.answer()
     
     action = query.data.split("_")[1]
     
-    if action == "add":
-        await query.message.reply_text(
-            "💰 **Add New Expense**\n\nPlease enter the amount (e.g., 150 or 150.50):",
-            parse_mode="Markdown",
-        )
-        # Note: This won't start the conversation handler properly
-        # User should use /add command instead
-    elif action == "upload":
-        await query.message.reply_text(
-            "📤 **Upload Bill**\n\nSend me a photo of your bill/receipt, and I'll extract the amount automatically!",
-            parse_mode="Markdown",
-        )
-    elif action == "report":
-        await query.message.reply_text(
-            "📊 **Expense Reports**\n\nSelect a month:",
-            parse_mode="Markdown",
-            reply_markup=build_month_keyboard(),
-        )
-    elif action == "history":
-        # Get history
+    if action == "history":
         async with async_session_maker() as session:
             user = await expense_service.get_or_create_user(
                 session,
@@ -558,7 +573,10 @@ def setup_handlers(application: Application) -> None:
     
     # Add expense conversation handler
     add_expense_handler = ConversationHandler(
-        entry_points=[CommandHandler("add", add_command)],
+        entry_points=[
+            CommandHandler("add", add_command),
+            CallbackQueryHandler(menu_add_entry, pattern="^menu_add$"),
+        ],
         states={
             AMOUNT: [MessageHandler(filters.TEXT & ~filters.COMMAND, receive_amount)],
             CATEGORY: [CallbackQueryHandler(receive_category)],
@@ -583,7 +601,10 @@ def setup_handlers(application: Application) -> None:
     
     # Report conversation handler
     report_handler = ConversationHandler(
-        entry_points=[CommandHandler("report", report_command)],
+        entry_points=[
+            CommandHandler("report", report_command),
+            CallbackQueryHandler(menu_report_entry, pattern="^menu_report$"),
+        ],
         states={
             REPORT_MONTH: [CallbackQueryHandler(report_month_selected)],
             REPORT_TYPE: [CallbackQueryHandler(report_type_selected)],
@@ -602,4 +623,5 @@ def setup_handlers(application: Application) -> None:
             "📤 Send me a photo of your bill/receipt!"
         )))
     application.add_handler(report_handler)
+    application.add_handler(CallbackQueryHandler(menu_upload_entry, pattern="^menu_upload$"))
     application.add_handler(CallbackQueryHandler(menu_callback, pattern="^menu_"))
