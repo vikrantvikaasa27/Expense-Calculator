@@ -7,6 +7,10 @@ from dotenv import load_dotenv
 load_dotenv()
 
 database_url = os.getenv("DATABASE_URL")
+# Auto-convert postgresql:// to postgresql+asyncpg:// for Railway compatibility
+if database_url and database_url.startswith("postgresql://"):
+    database_url = database_url.replace("postgresql://", "postgresql+asyncpg://", 1)
+
 # Create async engine
 engine = create_async_engine(
     database_url,
